@@ -1,5 +1,5 @@
 from PyQt6.QtCore import Qt
-from PyQt6.QtWidgets import QApplication, QMainWindow, QLabel, QWidget, QGridLayout, QLineEdit, QPushButton, \
+from PyQt6.QtWidgets import QApplication, QMainWindow, QLabel, QGridLayout, QLineEdit, QPushButton, \
     QComboBox, QTableWidget, QTableWidgetItem, QDialog, QVBoxLayout, QToolBar, QStatusBar, QMessageBox
 from PyQt6.QtGui import QAction, QIcon
 import sys
@@ -12,14 +12,36 @@ class Database:
         self.connection = sqlite3.connect(self.database_file)
         
     def __del__(self):
+        print("Database connection closed!")
         self.connection.close()
         
-    def connect(self):
-        connection = sqlite3.connect(self.database_file)
-        return connection
-    
     def get_all_data(self):
         result = self.connection.execute("SELECT * FROM students")
+        return result
+    
+    def insert(self, name, course, mobile):
+        cursor = self.connection.cursor()
+        cursor.execute("INSERT INTO students (name, course, mobile) VALUES (?, ?, ?)", (name, course, mobile))
+        self.connection.commit()
+        cursor.close()
+        
+    def update(self, student_id, name, course, mobile):
+        cursor = self.connection.cursor()
+        cursor.execute("UPDATE students SET name= ?, course = ?, mobile = ? WHERE id = ?",
+                       (name, course, mobile, student_id))
+        self.connection.commit()
+        cursor.close()
+        
+    def delete(self, student_id):
+        cursor = self.connection.cursor()
+        cursor.execute("DELETE from students WHERE id = ?", (student_id, ))
+        self.connection.commit()
+        cursor.close()
+        
+    def search(self, name):
+        cursor = self.connection.cursor()
+        result = list(cursor.execute("SELECT * FROM students WHERE name = ?", (name,)))
+        cursor.close()
         return result
 
 
@@ -75,6 +97,10 @@ class MainWindow(QMainWindow):
         
         # Detect a cell click
         self.table.cellClicked.connect(self.cell_clicked)
+        
+    def __del__(self):
+        print("Closing Database connection!")
+        del self.database
         
     def cell_clicked(self):
         edit_button = QPushButton("Edit")
@@ -166,12 +192,8 @@ class EditDialog(QDialog):
         self.setLayout(layout)
         
     def update_student(self):
-        cursor = main.database.connection.cursor()
-        cursor.execute("UPDATE students SET name= ?, course = ?, mobile = ? WHERE id = ?",
-                       (self.student_name.text(), self.course_name.itemText(self.course_name.currentIndex()),
-                        self.student_mobile.text(), self.student_id))
-        main.database.connection.commit()
-        cursor.close()
+        main.database.update(self.student_id, self.student_name.text(),
+                             self.course_name.itemText(self.course_name.currentIndex()), self.student_mobile.text())
         main.load_data()
         self.close()
 
@@ -197,11 +219,7 @@ class DeleteDialog(QDialog):
     def delete_student(self):
         index = main.table.currentRow()
         student_id = main.table.item(index, 0).text()
-        
-        cursor = main.database.connection.cursor()
-        cursor.execute("DELETE from students WHERE id = ?", (student_id, ))
-        main.database.connection.commit()
-        cursor.close()
+        main.database.delete(student_id)
         main.load_data()
         self.close()
         
@@ -235,14 +253,11 @@ class SearchDialog(QDialog):
         
     def search_name(self):
         name = self.student_name.text()
-        cursor = main.database.connection.cursor()
-        result = cursor.execute("SELECT * FROM students WHERE name = ?", (name,))
-        # rows = list(result)
-        # print(rows)
+        result = main.database.search(name)
+        # print(list(result))
         items = main.table.findItems(name, Qt.MatchFlag.MatchFixedString)
         for item in items:
             main.table.item(item.row(), 1).setSelected(True)
-        cursor.close()
         self.close()
         
         
@@ -275,12 +290,8 @@ class InsertDialog(QDialog):
         self.setLayout(layout)
         
     def add_student(self):
-        cursor = main.database.connection.cursor()
-        cursor.execute("INSERT INTO students (name, course, mobile) VALUES (?, ?, ?)",
-                       (self.student_name.text(), self.course_name.itemText(self.course_name.currentIndex()),
-                        self.student_mobile.text()))
-        main.database.connection.commit()
-        cursor.close()
+        main.database.insert(self.student_name.text(), self.course_name.itemText(self.course_name.currentIndex()),
+                             self.student_mobile.text())
         main.load_data()
         self.close()
         
@@ -289,3 +300,4 @@ app = QApplication(sys.argv)
 main = MainWindow()
 main.show()
 sys.exit(app.exec())
+
