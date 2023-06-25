@@ -152,7 +152,7 @@ class AboutDialog(QMessageBox):
         self.setWindowTitle("About")
         content = """
         This app was created during the "Python Mega Course."
-        Q is real. Donald Trump is the President.
+        Instructor: Ardit Sulce.
         """
         self.setText(content)
 
