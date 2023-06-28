@@ -3,44 +3,56 @@ from PyQt6.QtWidgets import QApplication, QMainWindow, QLabel, QGridLayout, QLin
     QComboBox, QTableWidget, QTableWidgetItem, QDialog, QVBoxLayout, QToolBar, QStatusBar, QMessageBox
 from PyQt6.QtGui import QAction, QIcon
 import sys
+import os
 import sqlite3
+import mysql.connector
+
+PASSWORD = os.getenv('PASSWORD')
 
 
 class Database:
-    def __init__(self, database_file="database.db"):
-        self.database_file = database_file
-        self.connection = sqlite3.connect(self.database_file)
+    def __init__(self, host="localhost", user="root", password=PASSWORD, database="school"):
+        self.host = host
+        self.user = user
+        self.password = password
+        self.database = database
+        self.connection = mysql.connector.connect(host=self.host, user=self.user, password=self.password,
+                                                  database=self.database)
         
     def __del__(self):
         print("Database connection closed!")
-        self.connection.close()
+        if self.connection:
+            self.connection.close()
         
     def get_all_data(self):
-        result = self.connection.execute("SELECT * FROM students")
+        cursor = self.connection.cursor()
+        cursor.execute("SELECT * FROM students")
+        result = cursor.fetchall()
         return result
     
     def insert(self, name, course, mobile):
         cursor = self.connection.cursor()
-        cursor.execute("INSERT INTO students (name, course, mobile) VALUES (?, ?, ?)", (name, course, mobile))
+        cursor.execute("INSERT INTO students (name, course, mobile) VALUES (%s, %s, %s)", (name, course, mobile))
         self.connection.commit()
         cursor.close()
         
     def update(self, student_id, name, course, mobile):
         cursor = self.connection.cursor()
-        cursor.execute("UPDATE students SET name= ?, course = ?, mobile = ? WHERE id = ?",
+        cursor.execute("UPDATE students SET name= %s, course = %s, mobile = %s WHERE id = %s",
                        (name, course, mobile, student_id))
         self.connection.commit()
         cursor.close()
         
     def delete(self, student_id):
         cursor = self.connection.cursor()
-        cursor.execute("DELETE from students WHERE id = ?", (student_id, ))
+        cursor.execute("DELETE from students WHERE id = %s", (student_id, ))
         self.connection.commit()
         cursor.close()
         
     def search(self, name):
         cursor = self.connection.cursor()
-        result = list(cursor.execute("SELECT * FROM students WHERE name = ?", (name,)))
+        cursor.execute("SELECT * FROM students WHERE name = %s", (name,))
+        result = list(cursor.fetchall())
         cursor.close()
         return result
 
